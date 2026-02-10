@@ -55,13 +55,61 @@ class EpisodeLogger:
             watched_at: Datetime when the episode was watched
         """
         season_id = self.resolve_season_id(ref.show_id, ref.season_number)
+
+        episode_is_logged = self.episode_is_logged(ref, watched_at)
+        if episode_is_logged:
+            print(f"DEBUG: Episode {ref} is already logged, skipping log_episode call.")
+            return False
         
-        return self.client.review_episode(
+        return self.client.log_episode_to_diary(
             show_id=ref.show_id,
             season_id=season_id,
             episode_number=str(ref.episode_number),
-            backdate=watched_at.isoformat()
+            watched_at=watched_at.isoformat()
         )
+
+    def episode_is_logged(self, ref: EpisodeRef, watched_at: Optional[datetime] = None) -> bool:
+        """
+        Check if a specific episode is marked as watched.
+
+        Args:
+            ref: Episode reference with show_id, season_number, and episode_number
+            watched_at: Optional datetime to check if episode was logged on that specific date
+
+        Returns:
+            True if episode is logged (optionally on the specified date), False otherwise
+        """
+        user_reviews = self.client.get_user_reviews()
+        
+        # Resolve the season_id for comparison
+        season_id = self.resolve_season_id(ref.show_id, ref.season_number)
+        
+        # Search for a matching review entry
+        for review in user_reviews:
+            if (review.get('showId') == ref.show_id and 
+                review.get('seasonId') == season_id and 
+                review.get('episodeNumber') == ref.episode_number):
+                
+                # If watched_at is specified, also check if the date matches
+                if watched_at is not None:
+                    backdate_str = review.get('backdate')
+                    if backdate_str:
+                        try:
+                            # Handle ISO 8601 format with 'Z' suffix
+                            backdate_str = backdate_str.replace('Z', '+00:00')
+                            backdate = datetime.fromisoformat(backdate_str)
+                            # Compare dates only (ignore time)
+                            if backdate.date() == watched_at.date():
+                                return True
+                        except (ValueError, TypeError):
+                            # Could not parse date, skip this review
+                            continue
+                else:
+                    # No date check required, episode exists
+                    return True
+        
+        return False
+        
 
     # def log_episodes(self, show_id: int, season_number: int, episode_numbers: Iterable[int]) -> bool:
     #     """

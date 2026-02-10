@@ -11,10 +11,15 @@ load_dotenv()
 def create_client() -> SerializdClient:
     client = SerializdClient()
 
-    username = os.getenv("SERIALIZD_USERNAME")
+    username = os.getenv("SERIALIZD_EMAIL")
     password = os.getenv("SERIALIZD_PASSWORD")
 
     if username and password:
-        client.login(email=username, password=password)
+        try:
+            result = client.login(email=username, password=password)
+        except Exception as e:
+            raise
+    else:
+        print("DEBUG: No credentials found, skipping login")
 
     return client

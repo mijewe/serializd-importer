@@ -8,9 +8,13 @@ def main() -> None:
 
     logger = EpisodeLogger(client)
 
-    # Hardcoded example:
-    # show_id: 114472 (Secret Invasion), season 1, episode 1
-    ok = logger.log_episode(EpisodeRef(show_id=1400, season_number=3, episode_number=1), datetime(2024, 6, 1, 20, 0))
+    show_id = 1400 # Seinfeld
+    season_number = 3
+    episode_number = 3
+    watched_at = datetime(2024, 6, 4, 20, 0)
+
+    ok = logger.log_episode(EpisodeRef(show_id, season_number, episode_number), watched_at)
+
     print("logged:", ok)
 
 if __name__ == "__main__":
