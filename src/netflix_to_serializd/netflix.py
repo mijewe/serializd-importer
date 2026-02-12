@@ -12,9 +12,15 @@ class ViewingEntry:
     watched_on: date
 
 
-def parse_viewing_activity_csv(rows: Iterable[dict[str, str]]) -> list[ViewingEntry]:
+def parse_viewing_activity_csv(rows: Iterable[dict[str, str]], profile_name: str | None = None) -> list[ViewingEntry]:
     out: list[ViewingEntry] = []
     for r in rows:
+        # Filter by profile name if specified
+        if profile_name is not None:
+            row_profile = (r.get("Profile Name") or "").strip()
+            if row_profile != profile_name:
+                continue
+
         title = (r.get("Title") or "").strip()
 
         # Netflix CSV has "Start Time" column with format "YYYY-MM-DD HH:MM:SS"
@@ -37,7 +43,7 @@ def parse_viewing_activity_csv(rows: Iterable[dict[str, str]]) -> list[ViewingEn
     return out
 
 
-def read_viewing_activity_csv(path: str) -> list[ViewingEntry]:
+def read_viewing_activity_csv(path: str, profile_name: str | None = None) -> list[ViewingEntry]:
     with open(path, newline="", encoding="utf-8-sig") as f:
         reader = csv.DictReader(f)
-        return parse_viewing_activity_csv(reader)
+        return parse_viewing_activity_csv(reader, profile_name=profile_name)

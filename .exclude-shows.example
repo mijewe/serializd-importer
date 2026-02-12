@@ -1,0 +1,11 @@
+# Netflix shows to exclude from import
+# One show name per line
+# Lines starting with # are comments and will be ignored
+
+# Example shows (replace with your own):
+Schitt's Creek
+Parks and Recreation
+The Good Place
+
+# You can add comments to explain why:
+# Gilmore Girls  # Ex-girlfriend watched this

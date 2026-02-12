@@ -127,7 +127,7 @@ class NetflixImporter:
         self.show_cache[show_name] = result
         return result
 
-    def import_csv(self, csv_path: str, dry_run: bool = False, dedup_window_days: int = 3) -> None:
+    def import_csv(self, csv_path: str, dry_run: bool = False, dedup_window_days: int = 3, order: str = "oldest", profile_name: str | None = None, exclude_shows: list[str] | None = None) -> None:
         """
         Import Netflix viewing history from CSV file.
 
@@ -135,18 +135,52 @@ class NetflixImporter:
             csv_path: Path to Netflix ViewingActivity.csv
             dry_run: If True, only parse and display what would be imported
             dedup_window_days: Days within which duplicate viewings are merged (default: 3)
+            order: Import order - "oldest" (chronological, default) or "newest" (reverse chronological)
+            profile_name: Optional Netflix profile name to filter by
+            exclude_shows: Optional list of show names to exclude from import
         """
         print(f"Reading Netflix viewing history from: {csv_path}")
-        all_entries = read_viewing_activity_csv(csv_path)
+        if profile_name:
+            print(f"Filtering by profile: {profile_name}")
+        all_entries = read_viewing_activity_csv(csv_path, profile_name=profile_name)
         print(f"Found {len(all_entries)} total entries")
+
+        # Filter out excluded shows if specified
+        if exclude_shows:
+            # Normalize exclude list (case-insensitive, stripped)
+            exclude_set = {s.strip().lower() for s in exclude_shows}
+
+            # Filter entries
+            before_count = len(all_entries)
+            filtered_entries = []
+            for entry in all_entries:
+                parsed = parse_netflix_title(entry.title)
+                if parsed.show_name.lower() not in exclude_set:
+                    filtered_entries.append(entry)
+
+            excluded_count = before_count - len(filtered_entries)
+            if excluded_count > 0:
+                print(f"Excluded {excluded_count} entries from {len(exclude_set)} show(s): {', '.join(exclude_shows)}")
+
+            all_entries = filtered_entries
 
         # Deduplicate entries
         entries, duplicates_removed = deduplicate_viewing_entries(all_entries, window_days=dedup_window_days)
         self.stats['duplicates_removed'] = duplicates_removed
 
+        # Sort entries based on order preference
+        if order == "oldest":
+            # Oldest first (chronological order)
+            entries.sort(key=lambda e: e.watched_on)
+            order_msg = "oldest to newest (chronological)"
+        else:
+            # Newest first (reverse chronological)
+            entries.sort(key=lambda e: e.watched_on, reverse=True)
+            order_msg = "newest to oldest (reverse chronological)"
+
         if duplicates_removed > 0:
             print(f"Removed {duplicates_removed} duplicate viewings (within {dedup_window_days}-day window)")
-        print(f"Processing {len(entries)} unique entries\n")
+        print(f"Processing {len(entries)} unique entries ({order_msg})\n")
 
         if dry_run:
             print("DRY RUN MODE - No episodes will be logged\n")
@@ -224,14 +258,55 @@ def main() -> None:
     import sys
 
     if len(sys.argv) < 2:
-        print("Usage: python -m netflix_to_serializd.importer <path-to-ViewingActivity.csv> [--dry-run]")
+        print("Usage: python -m netflix_to_serializd.importer <path-to-ViewingActivity.csv> [OPTIONS]")
+        print()
+        print("Options:")
+        print("  --dry-run              Run without actually logging episodes")
+        print("  --order=oldest         Import oldest to newest (chronological, default)")
+        print("  --order=newest         Import newest to oldest (reverse chronological)")
+        print("  --profile=NAME         Filter by Netflix profile name (e.g. --profile=Michael)")
+        print("  --exclude=SHOWS        Exclude shows (comma-separated, e.g. --exclude=\"Show 1,Show 2\")")
+        print("  --exclude-file=PATH    Exclude shows from file (one show per line)")
         sys.exit(1)
 
     csv_path = sys.argv[1]
     dry_run = "--dry-run" in sys.argv
 
+    # Parse flags
+    order = "oldest"
+    profile_name = None
+    exclude_shows = []
+
+    for arg in sys.argv:
+        if arg.startswith("--order="):
+            order = arg.split("=")[1]
+            if order not in ["oldest", "newest"]:
+                print(f"Error: Invalid order '{order}'. Must be 'oldest' or 'newest'")
+                sys.exit(1)
+        elif arg.startswith("--profile="):
+            profile_name = arg.split("=", 1)[1]
+        elif arg.startswith("--exclude="):
+            exclude_str = arg.split("=", 1)[1]
+            # Split by comma and strip whitespace
+            exclude_shows.extend([s.strip() for s in exclude_str.split(",") if s.strip()])
+        elif arg.startswith("--exclude-file="):
+            exclude_file = arg.split("=", 1)[1]
+            try:
+                with open(exclude_file, 'r', encoding='utf-8') as f:
+                    for line in f:
+                        # Strip whitespace and ignore empty lines and comments
+                        line = line.strip()
+                        if line and not line.startswith('#'):
+                            exclude_shows.append(line)
+            except FileNotFoundError:
+                print(f"Error: Exclude file not found: {exclude_file}")
+                sys.exit(1)
+            except Exception as e:
+                print(f"Error reading exclude file: {e}")
+                sys.exit(1)
+
     importer = NetflixImporter()
-    importer.import_csv(csv_path, dry_run=dry_run)
+    importer.import_csv(csv_path, dry_run=dry_run, order=order, profile_name=profile_name, exclude_shows=exclude_shows if exclude_shows else None)
 
 
 if __name__ == "__main__":

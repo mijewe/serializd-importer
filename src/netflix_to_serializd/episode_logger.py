@@ -29,8 +29,9 @@ class EpisodeLogger:
     :contentReference[oaicite:2]{index=2}
     """
 
-    def __init__(self, client: SerializdClient) -> None:
+    def __init__(self, client: SerializdClient, import_tag: str = "#netfliximportpython") -> None:
         self.client = client
+        self.import_tag = import_tag
 
     def resolve_season_id(self, show_id: int, season_number: int) -> int:
         """
@@ -65,7 +66,8 @@ class EpisodeLogger:
             show_id=ref.show_id,
             season_id=season_id,
             episode_number=str(ref.episode_number),
-            watched_at=watched_at.isoformat()
+            watched_at=watched_at.isoformat(),
+            tags=[self.import_tag] if self.import_tag else []
         )
 
     def episode_is_logged(self, ref: EpisodeRef, watched_at: Optional[datetime] = None) -> bool:
