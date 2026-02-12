@@ -4,6 +4,13 @@ import re
 from dataclasses import dataclass
 from typing import Optional
 
+# Manual TMDB ID overrides for shows that don't match well in search
+# Format: Netflix show name → TMDB show ID
+TMDB_ID_OVERRIDES = {
+    "The Office (U.K.)": 2996,  # The Office UK (2001)
+    "The Office (U.S.)": 2316,  # The Office US (2005)
+}
+
 
 @dataclass(frozen=True)
 class ParsedTitle:
@@ -78,6 +85,49 @@ def parse_netflix_title(title: str) -> ParsedTitle:
         show_name=title.strip(),
         is_movie=True
     )
+
+
+def normalize_show_name_for_tmdb(show_name: str) -> str:
+    """
+    Normalize show name for TMDB search.
+
+    Handles common variations that don't match TMDB's naming:
+    - "The Office (U.K.)" → "The Office UK"
+    - "Show Name (U.S.)" → "Show Name US"
+
+    Args:
+        show_name: Show name extracted from Netflix title
+
+    Returns:
+        Normalized show name for TMDB search
+
+    Example:
+        >>> normalize_show_name_for_tmdb("The Office (U.K.)")
+        'The Office UK'
+    """
+    # Replace country codes in parentheses with space + abbreviation
+    # (U.K.) → UK, (U.S.) → US, etc.
+    normalized = re.sub(r'\s*\(U\.K\.\)', ' UK', show_name)
+    normalized = re.sub(r'\s*\(U\.S\.\)', ' US', normalized)
+
+    return normalized.strip()
+
+
+def get_tmdb_id_override(show_name: str) -> Optional[int]:
+    """
+    Get manual TMDB ID override for shows that don't match well in search.
+
+    Args:
+        show_name: Netflix show name
+
+    Returns:
+        TMDB show ID if override exists, None otherwise
+
+    Example:
+        >>> get_tmdb_id_override("The Office (U.K.)")
+        2996
+    """
+    return TMDB_ID_OVERRIDES.get(show_name)
 
 
 def extract_show_name(title: str) -> str:
