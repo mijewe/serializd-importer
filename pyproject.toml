@@ -1,1 +1,18 @@
--e ../serializd-py
+[project]
+name = "netflix-to-serializd"
+version = "0.1.0"
+dependencies = [
+    "tmdbsimple",
+    "python-dotenv",
+]
+
+[tool.setuptools]
+packages = ["netflix_to_serializd"]
+package-dir = {"" = "src"}
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+# Development: editable install of serializd-py
+# Install with: pip install -e ../serializd-py
