@@ -5,7 +5,7 @@ Can delete all entries or only those with a specific tag.
 
 Usage:
     python _clear_all_reviews.py                # Delete ALL entries
-    python _clear_all_reviews.py netfliximportpython  # Delete only entries with this tag
+    python _clear_all_reviews.py netfliximport  # Delete only entries with this tag
 """
 
 from netflix_to_serializd.serializd_adapter import create_client
@@ -47,13 +47,44 @@ def main() -> None:
         print("No reviews found.")
         return
 
+    print(f"Found {len(all_reviews)} total diary entries")
+
     # Filter by tag if specified
     if filter_tag:
-        reviews = [r for r in all_reviews if filter_tag in r.get('tags', [])]
-        print(f"Found {len(reviews)} diary entries with tag '{filter_tag}' (out of {len(all_reviews)} total)\n")
+        print(f"\nFetching tags for each review to check for '{filter_tag}'...")
+        print("(This may take a moment for large collections)\n")
+
+        reviews = []
+        for i, review in enumerate(all_reviews, 1):
+            review_id = review.get('id')
+            if not review_id:
+                continue
+
+            # Fetch tags for this review
+            try:
+                tags = client.get_review_tags(review_id)
+
+                # Check if the filter tag is in the tags list
+                # Tags can be with or without # prefix
+                tag_match = False
+                for tag in tags:
+                    if filter_tag in tag or f"#{filter_tag}" == tag or filter_tag == tag.lstrip('#'):
+                        tag_match = True
+                        break
+
+                if tag_match:
+                    # Add the tags to the review object for display later
+                    review['tags'] = tags
+                    reviews.append(review)
+                    print(f"  [{i}/{len(all_reviews)}] Found match: {review.get('showTitle', 'Unknown')} (tags: {', '.join(tags)})")
+            except Exception as e:
+                print(f"  [{i}/{len(all_reviews)}] ⚠ Warning: Could not fetch tags for review {review_id}: {e}")
+                continue
+
+        print(f"\nFound {len(reviews)} diary entries with tag '{filter_tag}' (out of {len(all_reviews)} total)\n")
     else:
         reviews = all_reviews
-        print(f"Found {len(reviews)} diary entries.\n")
+        print()
 
     if not reviews:
         print("No matching reviews to delete.")

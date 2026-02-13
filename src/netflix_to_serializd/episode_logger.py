@@ -29,7 +29,7 @@ class EpisodeLogger:
     :contentReference[oaicite:2]{index=2}
     """
 
-    def __init__(self, client: SerializdClient, import_tag: str = "#netfliximportpython") -> None:
+    def __init__(self, client: SerializdClient, import_tag: str = "#netfliximport") -> None:
         self.client = client
         self.import_tag = import_tag
 

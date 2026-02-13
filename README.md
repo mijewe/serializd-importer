@@ -10,7 +10,7 @@ Import your Netflix viewing history into [Serializd](https://serializd.com) with
 - ✅ **Show exclusion** - Filter out shows you didn't watch (ex-girlfriend's shows, etc.)
 - ✅ **Automatic deduplication** - Handles "fell asleep and rewatched" scenarios
 - ✅ **TMDB integration** - Automatic show lookup with manual override support
-- ✅ **Tagging** - All imports tagged with `#netfliximportpython` for easy cleanup
+- ✅ **Tagging** - All imports tagged with `#netfliximport` for easy cleanup
 - ✅ **Idempotent** - Safe to re-run; skips already-logged episodes
 - ✅ **Dry-run mode** - Test before importing
 
@@ -209,7 +209,7 @@ Automatically handles "fell asleep and rewatched" scenarios:
 
 ### Tagging
 
-All imported episodes are tagged with `#netfliximportpython`. This allows you to:
+All imported episodes are tagged with `#netfliximport`. This allows you to:
 
 - Identify imported episodes in Serializd
 - Easily clean up if something goes wrong
@@ -238,8 +238,8 @@ If you need to remove imported episodes (e.g., botched import):
 # Remove ALL Serializd diary entries (⚠️ dangerous!)
 PYTHONPATH=src python src/netflix_to_serializd/_clear_all_reviews.py
 
-# Remove only entries with #netfliximportpython tag (recommended)
-PYTHONPATH=src python src/netflix_to_serializd/_clear_all_reviews.py netfliximportpython
+# Remove only entries with #netfliximport tag (recommended)
+PYTHONPATH=src python src/netflix_to_serializd/_clear_all_reviews.py netfliximport
 ```
 
 ## Staged Rollout (Recommended)
@@ -264,7 +264,7 @@ PYTHONPATH=src python -m netflix_to_serializd.importer ViewingActivity_test.csv
 **Step 3: Verify in Serializd**
 - Check episodes appear correctly
 - Verify dates match Netflix
-- Confirm tag `#netfliximportpython` is present
+- Confirm tag `#netfliximport` is present
 
 **Step 4: If good, run full import**
 ```bash
@@ -276,7 +276,7 @@ PYTHONPATH=src python -m netflix_to_serializd.importer \
 
 **Step 5: If issues, rollback**
 ```bash
-PYTHONPATH=src python src/netflix_to_serializd/_clear_all_reviews.py netfliximportpython
+PYTHONPATH=src python src/netflix_to_serializd/_clear_all_reviews.py netfliximport
 ```
 
 ## Performance
