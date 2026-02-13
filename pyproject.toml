@@ -1,13 +1,16 @@
 [project]
-name = "netflix-to-serializd"
-version = "0.1.0"
+name = "serializd-importer"
+version = "0.2.0"
 dependencies = [
     "tmdbsimple",
     "python-dotenv",
 ]
 
+[project.scripts]
+serializd-importer = "serializd_importer.cli:main"
+
 [tool.setuptools]
-packages = ["netflix_to_serializd"]
+packages = ["serializd_importer"]
 package-dir = {"" = "src"}
 
 [build-system]

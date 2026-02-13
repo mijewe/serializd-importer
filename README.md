@@ -1,32 +1,39 @@
-# Netflix to Serializd Importer
+# Serializd Importer
 
-Import your Netflix viewing history into [Serializd](https://serializd.com) with full episode tracking, custom watch dates, and automatic deduplication.
+Import your viewing history from multiple sources into [Serializd](https://serializd.com) with full episode tracking, custom watch dates, and automatic deduplication.
+
+## Supported Sources
+
+- 🎬 **Netflix** - Import from ViewingActivity.csv export
+- 📺 **Plex** - Import from Plex SQLite database
 
 ## Features
 
-- ✅ **Complete viewing history import** - Import all your Netflix TV show viewing history
+- ✅ **Multi-source support** - Import from Netflix, Plex, and more
+- ✅ **Complete viewing history** - Import all your TV show viewing history
 - ✅ **Chronological ordering** - Episodes appear in watch order (oldest to newest by default)
 - ✅ **Profile filtering** - Import only your profile's viewing history
 - ✅ **Show exclusion** - Filter out shows you didn't watch (ex-girlfriend's shows, etc.)
 - ✅ **Automatic deduplication** - Handles "fell asleep and rewatched" scenarios
 - ✅ **TMDB integration** - Automatic show lookup with manual override support
-- ✅ **Tagging** - All imports tagged with `#netfliximport` for easy cleanup
+- ✅ **Source tagging** - Imports tagged by source (`#netfliximport`, `#pleximport`) for easy cleanup
 - ✅ **Idempotent** - Safe to re-run; skips already-logged episodes
 - ✅ **Dry-run mode** - Test before importing
 
 ## Prerequisites
 
 - Python 3.10+
-- Netflix account with viewing history
 - Serializd account
 - TMDB API key (free at [themoviedb.org](https://www.themoviedb.org/settings/api))
+- **For Netflix:** Netflix account with viewing history export
+- **For Plex:** Plex Media Server with viewing history
 
 ## Installation
 
 1. **Clone the repository**
    ```bash
    git clone <repository-url>
-   cd netflix-to-serialized
+   cd netflix-to-serialized  # Note: directory name will be updated in future release
    ```
 
 2. **Create virtual environment**
@@ -35,9 +42,11 @@ Import your Netflix viewing history into [Serializd](https://serializd.com) with
    source .venv/bin/activate  # On Windows: .venv\Scripts\activate
    ```
 
-3. **Install dependencies**
+3. **Install package**
    ```bash
    pip install -e .
+
+   # Also install serializd-py (API client)
    cd ../serializd-py
    pip install -e .
    cd ../netflix-to-serialized
@@ -55,13 +64,36 @@ Import your Netflix viewing history into [Serializd](https://serializd.com) with
    TMDB_API_KEY=your_tmdb_api_key
    ```
 
-## Getting Netflix Viewing History
+## Getting Your Viewing History
+
+### Netflix Viewing History
 
 1. Go to [Netflix Account Settings](https://www.netflix.com/account)
 2. Navigate to **Profile & Parental Controls** → **Viewing Activity**
 3. Scroll to bottom and click **Download all**
 4. Wait for email with download link (can take 24-48 hours)
 5. Download and extract `ViewingActivity.csv`
+
+### Plex Database
+
+The Plex database location varies by operating system:
+
+**macOS:**
+```bash
+~/Library/Application Support/Plex Media Server/Plug-in Support/Databases/com.plexapp.plugins.library.db
+```
+
+**Linux:**
+```bash
+/var/lib/plexmediaserver/Library/Application Support/Plex Media Server/Plug-in Support/Databases/com.plexapp.plugins.library.db
+```
+
+**Windows:**
+```
+%LOCALAPPDATA%\Plex Media Server\Plug-in Support\Databases\com.plexapp.plugins.library.db
+```
+
+**Recommended:** Copy the database file to your working directory before importing (don't modify the live database).
 
 ## Usage
 
@@ -71,46 +103,56 @@ Import your Netflix viewing history into [Serializd](https://serializd.com) with
 # Activate virtual environment
 source .venv/bin/activate
 
-# Test with dry-run (recommended first step)
-PYTHONPATH=src python -m netflix_to_serializd.importer \
-  path/to/ViewingActivity.csv \
+# Netflix: Test with dry-run (recommended first step)
+serializd-importer netflix path/to/ViewingActivity.csv \
   --profile=YourName \
   --dry-run
 
-# Import for real
-PYTHONPATH=src python -m netflix_to_serializd.importer \
-  path/to/ViewingActivity.csv \
+# Netflix: Import for real
+serializd-importer netflix path/to/ViewingActivity.csv \
   --profile=YourName
+
+# Plex: Test with dry-run
+serializd-importer plex path/to/plex.db \
+  --profile=username \
+  --dry-run
+
+# Plex: Import for real
+serializd-importer plex path/to/plex.db \
+  --profile=username
 ```
 
-### Command-Line Options
+### Command-Line Interface
 
 ```
-python -m netflix_to_serializd.importer <ViewingActivity.csv> [OPTIONS]
+serializd-importer <source> <path> [OPTIONS]
+
+Sources:
+  netflix    Import from Netflix ViewingActivity.csv
+  plex       Import from Plex SQLite database
 
 Options:
   --dry-run              Run without actually logging episodes
   --order=oldest         Import oldest to newest (chronological, default)
   --order=newest         Import newest to oldest (reverse chronological)
-  --profile=NAME         Filter by Netflix profile name
+  --profile=NAME         Filter by profile name
   --exclude=SHOWS        Exclude shows (comma-separated)
   --exclude-file=PATH    Exclude shows from file (one per line)
+  --tag=TAG              Custom import tag (default: source-specific)
 ```
 
-### Example Commands
+### Netflix Examples
 
 **Dry-run test (recommended first):**
 ```bash
-PYTHONPATH=src python -m netflix_to_serializd.importer \
-  ViewingActivity.csv \
+serializd-importer netflix ViewingActivity.csv \
   --profile=Michael \
   --dry-run
 ```
 
 **Import with exclusions:**
 ```bash
-PYTHONPATH=src python -m netflix_to_serializd.importer \
-  ViewingActivity.csv \
+serializd-importer netflix ViewingActivity.csv \
   --profile=Michael \
   --exclude="Schitt's Creek,Parks and Recreation"
 ```
@@ -126,39 +168,72 @@ The Good Place
 EOF
 
 # Import
-PYTHONPATH=src python -m netflix_to_serializd.importer \
-  ViewingActivity.csv \
+serializd-importer netflix ViewingActivity.csv \
   --profile=Michael \
   --exclude-file=.exclude-shows.txt
 ```
 
-**Test import (last 30 days only):**
+**Import with custom tag:**
 ```bash
-# Create filtered CSV
-PYTHONPATH=src python src/netflix_to_serializd/_filter_recent_csv.py \
-  ViewingActivity.csv \
-  ViewingActivity_recent30.csv \
-  30 \
-  --profile=Michael
+serializd-importer netflix ViewingActivity.csv \
+  --profile=Michael \
+  --tag=#netflix2024
+```
 
-# Import filtered CSV
-PYTHONPATH=src python -m netflix_to_serializd.importer \
-  ViewingActivity_recent30.csv
+### Plex Examples
+
+**Dry-run test (recommended first):**
+```bash
+serializd-importer plex plex.db \
+  --profile=mwest56 \
+  --dry-run
+```
+
+**Import with exclusions:**
+```bash
+serializd-importer plex plex.db \
+  --profile=mwest56 \
+  --exclude-file=.exclude-shows.txt
+```
+
+**Import newest first (reverse chronological):**
+```bash
+serializd-importer plex plex.db \
+  --profile=mwest56 \
+  --order=newest
+```
+
+**Import with custom tag:**
+```bash
+serializd-importer plex plex.db \
+  --profile=mwest56 \
+  --tag=#plex2024
 ```
 
 ## Features Explained
 
 ### Profile Filtering
 
-Netflix exports viewing history for **all profiles** on your account. Use `--profile` to import only your viewing history:
+Both Netflix and Plex store viewing history for **all profiles** on your account. Use `--profile` to import only your viewing history.
 
+**Netflix:**
 ```bash
---profile=Michael
+serializd-importer netflix ViewingActivity.csv --profile=Michael
 ```
 
-To see which profiles exist in your CSV:
+To see which profiles exist in your Netflix CSV:
 ```bash
 cut -d',' -f3 ViewingActivity.csv | tail -n +2 | sort -u
+```
+
+**Plex:**
+```bash
+serializd-importer plex plex.db --profile=mwest56
+```
+
+To see which profiles exist in your Plex database:
+```bash
+sqlite3 plex.db "SELECT name FROM accounts;"
 ```
 
 ### Show Exclusion
@@ -209,17 +284,22 @@ Automatically handles "fell asleep and rewatched" scenarios:
 
 ### Tagging
 
-All imported episodes are tagged with `#netfliximport`. This allows you to:
+Imported episodes are tagged by source:
+- Netflix: `#netfliximport`
+- Plex: `#pleximport`
 
-- Identify imported episodes in Serializd
+This allows you to:
+
+- Identify which source imported each episode
 - Easily clean up if something goes wrong
 - Filter imported episodes from manual entries
+- Use custom tags with `--tag=#yourtag`
 
 ### TMDB Show Matching
 
-Shows are automatically looked up in TMDB. If a show doesn't match correctly, add a manual override:
+Shows are automatically looked up in TMDB by name. If a show doesn't match correctly, you can add a manual override for Netflix imports:
 
-Edit `src/netflix_to_serializd/title_parser.py`:
+Edit `src/serializd_importer/sources/netflix.py`:
 ```python
 TMDB_ID_OVERRIDES = {
     "The Office (U.K.)": 2996,  # The Office UK (2001)
@@ -230,59 +310,79 @@ TMDB_ID_OVERRIDES = {
 
 Find TMDB IDs at [themoviedb.org](https://www.themoviedb.org).
 
+**Note:** Plex lookups rely on show name matching. If Plex show names don't match TMDB, you may need to correct the show names in Plex first.
+
 ## Cleanup
 
 If you need to remove imported episodes (e.g., botched import):
 
 ```bash
-# Remove ALL Serializd diary entries (⚠️ dangerous!)
-PYTHONPATH=src python src/netflix_to_serializd/_clear_all_reviews.py
+# Remove only Netflix imports (recommended)
+PYTHONPATH=src python src/serializd_importer/_clear_all_reviews.py netfliximport
 
-# Remove only entries with #netfliximport tag (recommended)
-PYTHONPATH=src python src/netflix_to_serializd/_clear_all_reviews.py netfliximport
+# Remove only Plex imports (recommended)
+PYTHONPATH=src python src/serializd_importer/_clear_all_reviews.py pleximport
+
+# Remove ALL Serializd diary entries (⚠️ dangerous!)
+PYTHONPATH=src python src/serializd_importer/_clear_all_reviews.py
 ```
 
 ## Staged Rollout (Recommended)
 
-For safety, test with recent data before full import:
+For safety, test with dry-run before full import:
 
-**Step 1: Create test CSV (last 30 days)**
+**Step 1: Dry-run test**
 ```bash
-PYTHONPATH=src python src/netflix_to_serializd/_filter_recent_csv.py \
-  ViewingActivity.csv \
-  ViewingActivity_test.csv \
-  30 \
+# Netflix
+serializd-importer netflix ViewingActivity.csv \
   --profile=Michael \
+  --exclude-file=.exclude-shows.txt \
+  --dry-run
+
+# Plex
+serializd-importer plex plex.db \
+  --profile=mwest56 \
+  --exclude-file=.exclude-shows.txt \
+  --dry-run
+```
+
+**Step 2: Review dry-run output**
+- Check for TMDB lookup failures
+- Verify episode counts look reasonable
+- Confirm profile filtering worked
+
+**Step 3: Run real import**
+```bash
+# Netflix
+serializd-importer netflix ViewingActivity.csv \
+  --profile=Michael \
+  --exclude-file=.exclude-shows.txt
+
+# Plex
+serializd-importer plex plex.db \
+  --profile=mwest56 \
   --exclude-file=.exclude-shows.txt
 ```
 
-**Step 2: Run test import**
-```bash
-PYTHONPATH=src python -m netflix_to_serializd.importer ViewingActivity_test.csv
-```
-
-**Step 3: Verify in Serializd**
+**Step 4: Verify in Serializd**
 - Check episodes appear correctly
-- Verify dates match Netflix
-- Confirm tag `#netfliximport` is present
-
-**Step 4: If good, run full import**
-```bash
-PYTHONPATH=src python -m netflix_to_serializd.importer \
-  ViewingActivity.csv \
-  --profile=Michael \
-  --exclude-file=.exclude-shows.txt
-```
+- Verify dates match source
+- Confirm tags are present (`#netfliximport` or `#pleximport`)
 
 **Step 5: If issues, rollback**
 ```bash
-PYTHONPATH=src python src/netflix_to_serializd/_clear_all_reviews.py netfliximport
+# Netflix
+PYTHONPATH=src python src/serializd_importer/_clear_all_reviews.py netfliximport
+
+# Plex
+PYTHONPATH=src python src/serializd_importer/_clear_all_reviews.py pleximport
 ```
 
 ## Performance
 
-- **Import speed:** ~1 second per episode (rate limiting to avoid API throttling)
-- **Typical import:** 2,000-3,000 episodes = 30-50 minutes
+- **Import speed:** ~0.5-1 second per episode (rate limiting to avoid API throttling)
+- **Typical Netflix import:** 2,000-3,000 episodes = 20-50 minutes
+- **Typical Plex import:** Varies by library size
 - **First run:** Slower due to TMDB lookups; subsequent runs faster (idempotency)
 
 ## Troubleshooting
@@ -292,8 +392,9 @@ PYTHONPATH=src python src/netflix_to_serializd/_clear_all_reviews.py netfliximpo
 Some shows may not match TMDB's database. Solutions:
 
 1. Check dry-run output for failed matches
-2. Add manual overrides in `title_parser.py` (see TMDB Show Matching above)
-3. Re-run import (already-logged episodes will be skipped)
+2. For Netflix: Add manual overrides in `src/serializd_importer/sources/netflix.py` (see TMDB Show Matching above)
+3. For Plex: Verify show names in Plex match TMDB naming conventions
+4. Re-run import (already-logged episodes will be skipped)
 
 ### Duplicate episodes
 
@@ -308,7 +409,7 @@ If you see unexpected duplicates:
 If you get rate limit errors:
 
 - Default sleep is 0.5s per episode
-- Edit `importer.py` line 203 to increase: `time.sleep(1.0)`
+- Edit `src/serializd_importer/common/importer.py` line 212 to increase: `time.sleep(1.0)`
 
 ### Environment issues
 
@@ -322,18 +423,23 @@ python -c "from dotenv import load_dotenv; import os; load_dotenv(); print(os.ge
 ## Project Structure
 
 ```
-netflix-to-serialized/
-├── src/netflix_to_serializd/
-│   ├── importer.py              # Main import logic
-│   ├── episode_logger.py        # Serializd episode logging
-│   ├── netflix.py               # Netflix CSV parsing
-│   ├── title_parser.py          # Netflix title parsing & TMDB overrides
-│   ├── tmdb_client.py           # TMDB API client
-│   ├── serializd_adapter.py     # Serializd client factory
-│   ├── _filter_recent_csv.py   # CSV filtering utility
+serializd-importer/
+├── src/serializd_importer/
+│   ├── cli.py                   # Multi-source CLI dispatcher
+│   ├── common/
+│   │   ├── importer.py          # Generic import logic
+│   │   ├── episode_logger.py   # Serializd episode logging
+│   │   ├── tmdb_client.py       # TMDB API client
+│   │   └── serializd_adapter.py # Serializd client factory
+│   ├── sources/
+│   │   ├── base.py              # Abstract source interface
+│   │   ├── netflix.py           # Netflix CSV parser
+│   │   └── plex.py              # Plex SQLite parser
+│   ├── _filter_recent_csv.py   # CSV filtering utility (Netflix)
 │   └── _clear_all_reviews.py   # Cleanup utility
 ├── .env.example                 # Environment template
 ├── .exclude-shows.example       # Exclude file template
+├── pyproject.toml               # Package configuration
 └── README.md                    # This file
 ```
 
@@ -343,7 +449,7 @@ netflix-to-serialized/
 
 If you watched the same episode on different dates (intentional re-watch), both entries will be logged. This is by design.
 
-To change this behavior (skip any episode that exists, regardless of date), modify `episode_logger.py:109-111`:
+To change this behavior (skip any episode that exists, regardless of date), modify `src/serializd_importer/common/episode_logger.py` around line 109-111:
 
 ```python
 else:
@@ -377,12 +483,16 @@ MIT License - see LICENSE file for details
 
 ## Credits
 
-Built for importing Netflix viewing history into [Serializd](https://serializd.com), a TV show tracking service.
+Built for importing viewing history from multiple sources into [Serializd](https://serializd.com), a TV show tracking service.
 
 Uses:
 - [TMDB API](https://www.themoviedb.org) for show metadata
 - [serializd-py](../serializd-py) Python client for Serializd API
 
+## Migration from v0.1.0
+
+If you're upgrading from the Netflix-only version (v0.1.0), see [MIGRATION.md](MIGRATION.md) for details on the new CLI interface.
+
 ---
 
-**Note:** This is an unofficial tool and is not affiliated with Netflix or Serializd.
+**Note:** This is an unofficial tool and is not affiliated with Netflix, Plex, or Serializd.
