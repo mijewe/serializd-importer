@@ -11,11 +11,14 @@ from serializd_importer.sources.plex import PlexParser
 from serializd_importer.common.importer import GenericImporter
 
 
-# Registry of available source parsers
+# Registry of available source parsers (used by the generic pipeline)
 SOURCES = {
     "netflix": NetflixParser,
     "plex": PlexParser,
 }
+
+# Sources with custom import pipelines (bypass GenericImporter)
+CUSTOM_SOURCES = {"notion-star-trek"}
 
 
 def main() -> None:
@@ -24,8 +27,9 @@ def main() -> None:
         print("Usage: serializd-importer <source> <path> [OPTIONS]")
         print()
         print("Sources:")
-        print("  netflix    Import from Netflix ViewingActivity.csv")
-        print("  plex       Import from Plex SQLite database")
+        print("  netflix           Import from Netflix ViewingActivity.csv")
+        print("  plex              Import from Plex SQLite database")
+        print("  notion-star-trek  Import from Notion Star Trek CSV + review files")
         print()
         print("Options:")
         print("  --dry-run              Test without logging episodes")
@@ -35,19 +39,21 @@ def main() -> None:
         print("  --order=oldest         Import oldest to newest (default)")
         print("  --order=newest         Import newest to oldest")
         print("  --tag=TAG              Custom import tag (default: source-specific)")
+        print("  --reviews-dir=PATH     Directory with Notion .md review files (repeatable, notion-star-trek only)")
         print()
         print("Examples:")
         print("  serializd-importer netflix ViewingActivity.csv --profile=Michael --dry-run")
         print("  serializd-importer plex plex.db --profile=mwest56 --exclude-file=.exclude-shows.txt")
+        print('  serializd-importer notion-star-trek "Star Trek.csv" --reviews-dir=./ds9 --reviews-dir=./voy --dry-run')
         sys.exit(1)
 
     source_name = sys.argv[1].lower()
     source_path = sys.argv[2]
 
-    # Validate source
-    if source_name not in SOURCES:
+    all_sources = set(SOURCES.keys()) | CUSTOM_SOURCES
+    if source_name not in all_sources:
         print(f"Error: Unknown source '{source_name}'")
-        print(f"Available sources: {', '.join(SOURCES.keys())}")
+        print(f"Available sources: {', '.join(sorted(all_sources))}")
         sys.exit(1)
 
     # Parse command-line options
@@ -56,6 +62,7 @@ def main() -> None:
     profile = None
     exclude_shows = []
     custom_tag = None
+    reviews_dirs: list[str] = []
 
     for arg in sys.argv[3:]:
         if arg.startswith("--order="):
@@ -84,8 +91,16 @@ def main() -> None:
                 sys.exit(1)
         elif arg.startswith("--tag="):
             custom_tag = arg.split("=", 1)[1]
+        elif arg.startswith("--reviews-dir="):
+            reviews_dirs.append(arg.split("=", 1)[1])
 
-    # Instantiate source parser
+    # Dispatch to custom importer or generic pipeline
+    if source_name == "notion-star-trek":
+        from serializd_importer.sources.notion_star_trek import run_import
+        run_import(csv_path=source_path, reviews_dirs=reviews_dirs or None, dry_run=dry_run, order=order)
+        return
+
+    # Generic pipeline for standard sources
     parser_class = SOURCES[source_name]
     parser = parser_class()
 
