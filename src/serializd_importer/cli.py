@@ -18,7 +18,7 @@ SOURCES = {
 }
 
 # Sources with custom import pipelines (bypass GenericImporter)
-CUSTOM_SOURCES = {"notion-star-trek"}
+CUSTOM_SOURCES = {"csv"}
 
 
 def main() -> None:
@@ -27,24 +27,24 @@ def main() -> None:
         print("Usage: serializd-importer <source> <path> [OPTIONS]")
         print()
         print("Sources:")
-        print("  netflix           Import from Netflix ViewingActivity.csv")
-        print("  plex              Import from Plex SQLite database")
-        print("  notion-star-trek  Import from Notion Star Trek CSV + review files")
+        print("  netflix    Import from Netflix ViewingActivity.csv")
+        print("  plex       Import from Plex SQLite database")
+        print("  csv        Import from a custom CSV (columns: show, season, episode, date, review, tags)")
         print()
         print("Options:")
-        print("  --dry-run              Test without logging episodes")
-        print("  --profile=NAME         Filter by profile name")
-        print("  --exclude=SHOWS        Exclude shows (comma-separated)")
-        print("  --exclude-file=PATH    Exclude shows from file (one per line)")
-        print("  --order=oldest         Import oldest to newest (default)")
-        print("  --order=newest         Import newest to oldest")
-        print("  --tag=TAG              Custom import tag (default: source-specific)")
-        print("  --reviews-dir=PATH     Directory with Notion .md review files (repeatable, notion-star-trek only)")
+        print("  --dry-run                      Test without logging episodes")
+        print("  --profile=NAME                 Filter by profile name")
+        print("  --exclude=SHOWS               Exclude shows (comma-separated)")
+        print("  --exclude-file=PATH            Exclude shows from file (one per line)")
+        print("  --order=oldest                 Import oldest to newest (default)")
+        print("  --order=newest                 Import newest to oldest")
+        print("  --tag=TAG                      Custom import tag (default: source-specific)")
+        print("  --tmdb-id-override=NAME:ID     Override TMDB ID for a show (repeatable, csv only)")
         print()
         print("Examples:")
         print("  serializd-importer netflix ViewingActivity.csv --profile=Michael --dry-run")
         print("  serializd-importer plex plex.db --profile=mwest56 --exclude-file=.exclude-shows.txt")
-        print('  serializd-importer notion-star-trek "Star Trek.csv" --reviews-dir=./ds9 --reviews-dir=./voy --dry-run')
+        print('  serializd-importer csv data.csv --tmdb-id-override="Deep Space Nine:580" --dry-run')
         sys.exit(1)
 
     source_name = sys.argv[1].lower()
@@ -62,7 +62,7 @@ def main() -> None:
     profile = None
     exclude_shows = []
     custom_tag = None
-    reviews_dirs: list[str] = []
+    tmdb_overrides: dict[str, int] = {}
 
     for arg in sys.argv[3:]:
         if arg.startswith("--order="):
@@ -91,13 +91,29 @@ def main() -> None:
                 sys.exit(1)
         elif arg.startswith("--tag="):
             custom_tag = arg.split("=", 1)[1]
-        elif arg.startswith("--reviews-dir="):
-            reviews_dirs.append(arg.split("=", 1)[1])
+        elif arg.startswith("--tmdb-id-override="):
+            override_str = arg.split("=", 1)[1]
+            if ":" not in override_str:
+                print(f"Error: Invalid --tmdb-id-override format: {override_str}")
+                print("Expected format: --tmdb-id-override=SHOW_NAME:TMDB_ID")
+                sys.exit(1)
+            name, id_str = override_str.rsplit(":", 1)
+            try:
+                tmdb_overrides[name] = int(id_str)
+            except ValueError:
+                print(f"Error: Invalid TMDB ID in override: {id_str}")
+                sys.exit(1)
 
     # Dispatch to custom importer or generic pipeline
-    if source_name == "notion-star-trek":
-        from serializd_importer.sources.notion_star_trek import run_import
-        run_import(csv_path=source_path, reviews_dirs=reviews_dirs or None, dry_run=dry_run, order=order)
+    if source_name == "csv":
+        from serializd_importer.sources.csv_source import run_import
+        run_import(
+            csv_path=source_path,
+            tmdb_overrides=tmdb_overrides or None,
+            dry_run=dry_run,
+            order=order,
+            tag=custom_tag or "#csvimport",
+        )
         return
 
     # Generic pipeline for standard sources
