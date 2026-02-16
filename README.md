@@ -30,7 +30,7 @@ Import your viewing history from multiple sources into [Serializd](https://seria
 
 1. **Clone the repository**
    ```bash
-   git clone <repository-url>
+   git clone git@github.com:mijewe/serializd-importer.git
    cd netflix-to-serialized
    ```
 
