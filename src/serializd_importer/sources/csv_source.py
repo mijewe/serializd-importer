@@ -61,6 +61,34 @@ def parse_date(date_str: str) -> datetime | None:
     return None
 
 
+def parse_tmdb_map(map_path: str) -> dict[str, int] | None:
+    """Parse a .tmdbmap file mapping show names to TMDB IDs.
+
+    Format: one entry per line as `Show Name:TMDB_ID`. Lines starting with #
+    are comments. Returns None if the file doesn't exist.
+    """
+    try:
+        with open(map_path, encoding="utf-8") as f:
+            overrides: dict[str, int] = {}
+            for line_num, line in enumerate(f, 1):
+                line = line.strip()
+                if not line or line.startswith("#"):
+                    continue
+                if ":" not in line:
+                    print(f"Warning: skipping invalid line {line_num} in {map_path}: {line}")
+                    continue
+                name, id_str = line.rsplit(":", 1)
+                name = name.strip()
+                id_str = id_str.strip()
+                try:
+                    overrides[name] = int(id_str)
+                except ValueError:
+                    print(f"Warning: invalid TMDB ID on line {line_num} in {map_path}: {id_str}")
+            return overrides if overrides else None
+    except FileNotFoundError:
+        return None
+
+
 def parse_csv(csv_path: str) -> list[CsvEpisode]:
     """Parse a user-provided CSV into episodes."""
     episodes: list[CsvEpisode] = []

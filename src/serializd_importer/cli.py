@@ -39,12 +39,12 @@ def main() -> None:
         print("  --order=oldest                 Import oldest to newest (default)")
         print("  --order=newest                 Import newest to oldest")
         print("  --tag=TAG                      Custom import tag (default: source-specific)")
-        print("  --tmdb-id-override=NAME:ID     Override TMDB ID for a show (repeatable, csv only)")
+        print("  --tmdb-map=PATH                TMDB ID overrides file (csv only, default: .tmdbmap)")
         print()
         print("Examples:")
         print("  serializd-importer netflix ViewingActivity.csv --profile=Michael --dry-run")
         print("  serializd-importer plex plex.db --profile=mwest56 --exclude-file=.exclude-shows.txt")
-        print('  serializd-importer csv data.csv --tmdb-id-override="Deep Space Nine:580" --dry-run')
+        print("  serializd-importer csv data.csv --dry-run")
         sys.exit(1)
 
     source_name = sys.argv[1].lower()
@@ -62,7 +62,7 @@ def main() -> None:
     profile = None
     exclude_shows = []
     custom_tag = None
-    tmdb_overrides: dict[str, int] = {}
+    tmdb_map_path = ".tmdbmap"
 
     for arg in sys.argv[3:]:
         if arg.startswith("--order="):
@@ -91,22 +91,13 @@ def main() -> None:
                 sys.exit(1)
         elif arg.startswith("--tag="):
             custom_tag = arg.split("=", 1)[1]
-        elif arg.startswith("--tmdb-id-override="):
-            override_str = arg.split("=", 1)[1]
-            if ":" not in override_str:
-                print(f"Error: Invalid --tmdb-id-override format: {override_str}")
-                print("Expected format: --tmdb-id-override=SHOW_NAME:TMDB_ID")
-                sys.exit(1)
-            name, id_str = override_str.rsplit(":", 1)
-            try:
-                tmdb_overrides[name] = int(id_str)
-            except ValueError:
-                print(f"Error: Invalid TMDB ID in override: {id_str}")
-                sys.exit(1)
+        elif arg.startswith("--tmdb-map="):
+            tmdb_map_path = arg.split("=", 1)[1]
 
     # Dispatch to custom importer or generic pipeline
     if source_name == "csv":
-        from serializd_importer.sources.csv_source import run_import
+        from serializd_importer.sources.csv_source import run_import, parse_tmdb_map
+        tmdb_overrides = parse_tmdb_map(tmdb_map_path)
         run_import(
             csv_path=source_path,
             tmdb_overrides=tmdb_overrides or None,

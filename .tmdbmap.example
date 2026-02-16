@@ -1,0 +1,7 @@
+# TMDB ID overrides for CSV import
+# Format: Show Name:TMDB_ID
+# Find IDs at https://www.themoviedb.org
+
+# Useful when TMDB search returns the wrong result:
+Deep Space Nine:580
+The Office:2316

@@ -74,6 +74,32 @@ Import your viewing history from multiple sources into [Serializd](https://seria
 1. Open Plex Media Server
 2. Download the database file
 
+### Custom CSV
+
+Create a `.csv` file with the following columns:
+
+| Column | Required | Description |
+|--------|----------|-------------|
+| `show` | Yes | Show name (used for TMDB lookup) |
+| `season` | Yes | Season number |
+| `episode` | Yes | Episode number |
+| `date` | No | Watch date (see supported formats below) |
+| `review` | No | Review text for the diary entry |
+| `tags` | No | Comma-separated tags |
+
+Example:
+
+```csv
+show,season,episode,date,review,tags
+Breaking Bad,1,1,2024-01-15,Great pilot,
+The Bear,2,6,2024-03-20,,comfort-rewatch
+Severance,1,1,,,
+```
+
+Supported date formats: `2024-04-15`, `2024-04-15T12:00:00`, `April 15, 2024`, `15/04/2024`, `04/15/2024`.
+
+Episodes without a date are skipped unless they already have an existing log on Serializd (in which case the existing date is preserved).
+
 ## Usage
 
 ```
@@ -82,13 +108,16 @@ serializd-importer <source> <path> [OPTIONS]
 Sources:
   netflix    Import from Netflix ViewingActivity.csv
   plex       Import from Plex SQLite database
+  csv        Import from a custom CSV file
 
 Options:
-  --dry-run              Preview without logging episodes
-  --profile=NAME         Filter by profile name
-  --exclude=SHOWS        Exclude shows (comma-separated)
-  --exclude-file=PATH    Exclude shows listed in a file (one per line)
-  --tag=TAG              Custom import tag (default: source-specific)
+  --dry-run                      Preview without logging episodes
+  --profile=NAME                 Filter by profile name (netflix/plex only)
+  --exclude=SHOWS                Exclude shows (comma-separated, netflix/plex only)
+  --exclude-file=PATH            Exclude shows listed in a file (netflix/plex only)
+  --tag=TAG                      Custom import tag (default: source-specific)
+  --order=oldest|newest          Import order by date (default: oldest)
+  --tmdb-map=PATH                TMDB ID overrides file (csv only, default: .tmdbmap)
 ```
 
 ### `--dry-run`
@@ -123,6 +152,28 @@ Logs are tagged `#netfliximport` or `#pleximport` by default. Override with `--t
 serializd-importer netflix ViewingActivity.csv --tag=#customtag
 ```
 
+### CSV import
+
+```bash
+serializd-importer csv data.csv --dry-run
+```
+
+If a show name doesn't resolve correctly via TMDB search, create a `.tmdbmap` file to override the lookup. The file maps show names to TMDB IDs (find IDs at [themoviedb.org](https://www.themoviedb.org)). See `.tmdbmap.example` for the format.
+
+```
+# .tmdbmap
+Deep Space Nine:580
+The Office:2316
+```
+
+The file defaults to `.tmdbmap` in the current directory. Override with `--tmdb-map=path/to/file`.
+
+The CSV importer handles merging with existing Serializd logs:
+
+- **No existing log** — creates a new diary entry
+- **Existing log without review text** — replaces it with the new data
+- **Existing log with review text** — adds a new log alongside it (won't overwrite your review)
+
 ## How It Works
 
 ### Deduplication
@@ -143,6 +194,9 @@ PYTHONPATH=src python src/serializd_importer/_clear_all_reviews.py netfliximport
 
 # Remove Plex imports
 PYTHONPATH=src python src/serializd_importer/_clear_all_reviews.py pleximport
+
+# Remove CSV imports
+PYTHONPATH=src python src/serializd_importer/_clear_all_reviews.py csvimport
 
 # Remove ALL diary entries (dangerous!)
 PYTHONPATH=src python src/serializd_importer/_clear_all_reviews.py
