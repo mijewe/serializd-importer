@@ -71,7 +71,7 @@ Import your viewing history from multiple sources into [Serializd](https://seria
 
 ### Plex
 
-1. Open Plex Media Server
+1. Open Plex Media Server → Troubleshooting 
 2. Download the database file
 
 ### Custom CSV
