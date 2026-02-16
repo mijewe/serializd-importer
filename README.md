@@ -40,12 +40,9 @@ Import your viewing history from multiple sources into [Serializd](https://seria
    source .venv/bin/activate  # On Windows: .venv\Scripts\activate
    ```
 
-3. **Install packages**
+3. **Install package**
    ```bash
    pip install -e .
-
-   # Also install the serializd-py API client
-   cd ../serializd-py && pip install -e . && cd -
    ```
 
 4. **Configure environment**

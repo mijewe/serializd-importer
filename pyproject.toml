@@ -4,6 +4,7 @@ version = "0.2.0"
 dependencies = [
     "tmdbsimple",
     "python-dotenv",
+    "serializd-py @ git+https://github.com/mijewe/serializd-py.git",
 ]
 
 [project.scripts]
@@ -17,5 +18,3 @@ package-dir = {"" = "src"}
 requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
-# Development: editable install of serializd-py
-# Install with: pip install -e ../serializd-py
